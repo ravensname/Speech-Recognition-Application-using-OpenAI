@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <title>AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Gaya scrollbar kustom */
+      .scroll-container::-webkit-scrollbar {
+        width: 0; /* Sembunyikan scrollbar */
+      }
+      .scroll-container {
+        overflow-y: scroll;
+        scroll-behavior: smooth;
+      }
+    </style>
+  </head>
+
+  <body
+    class="select-none  flex flex-col w-[100%] md:w-[540px] md:mx-auto">
+    <div
+      class="bg-[#075e54] w-[540px] mx-auto fixed  z-50 h-[80px] drop-shadow-lg flex  items-center px-3 ">
+      <div
+        class="logo  rounded-full overflow-hidden w-[100px] flex items-center">
+        <img class="aspect-square p-4 rounded-full" src="/static/ourprof.jpg" alt="logo" />
+      </div>
+      <div class="search  w-full">
+        <select class="w-full p-2 rounded-lg" name="language" id="language">
+			<option value="id-ID">Indonesia</option>
+			<option value="en-US">English</option>
+			<option value="ja-JP">Japan</option>
+			<option value="ko-KR">Korea</option>
+        </select>
+        </form>
+      </div>
+    </div>
+    <!-- start chat -->
+    <main
+    id="chat"  
+	 class="px-8 pt-28 min-h-screen scroll-container bg-[#ece5dd] py-[40px] w-[100%]  flex flex-col space-y-4 overflow-x-hidden overflow-y-scroll">
+    </main>
+    <!-- end chat -->
+    <menu
+      style="box-shadow: 0px -1px 15px rgba(0, 0, 0, 0.1)"
+      class="z-50 w-[540px] fixed bottom-0 bg-gray-100 h-[70px]  flex">
+      <button
+		id="askRecord"
+        class="text-white font-extrabold tracking-wider hover:brightness-110 disabled:brightness-110 bg-[#075e54] w-full text-center flex justify-center mx-9 rounded-full -translate-y-7">
+        <h1 class="my-auto" id="textAsk">ASK PROFESOR</h1>
+      </button>
+    </menu>
+  </body>
+  <script>
+	const chat = document.getElementById("chat");
+	const textAsk = document.getElementById("textAsk");
+	const askRecord = document.getElementById("askRecord");
+	const responseData = [];
+	const language = document.getElementById("language");
+	function addTextProfessor(str) {
+		const html = `
+		<div class=" relative pl-7 pr-8">
+        <img
+          class="absolute aspect-square w-24 left-0 bottom-0 -ml-12 -mb-10"
+          src="/static/prof.svg"
+          alt="" />
+        <div
+          class="bg-gray-100 p-3"
+          style="border-radius: 16px; border-bottom-left-radius: 0">
+          <p>
+            ${str}
+          </p>
+        </div>
+      </div>`
+		chat.innerHTML += html;
+	}
+
+	function addTextUser(str) {
+		const html = `
+		<div
+        class="bg-gray-100 ml-16 p-3"
+        style="border-radius: 16px; border-bottom-right-radius: 0">
+        <p>
+          ${str}
+        </p>
+      </div>
+		`
+		chat.innerHTML += html;
+	}
+
+	document.addEventListener("DOMContentLoaded", function () {
+            let mediaRecorder;
+            let audioChunks = [];
+
+				let isRecording = false;
+
+            // Check if MediaRecorder is supported
+            if (
+               !navigator.mediaDevices ||
+               !navigator.mediaDevices.getUserMedia
+            ) {
+               alert(
+                  "Your browser does not support the MediaRecorder API. Try updating or switching your browser."
+               );
+               return;
+            }
+
+            navigator.mediaDevices
+               .getUserMedia({ audio: true })
+               .then((stream) => {
+                  mediaRecorder = new MediaRecorder(stream);
+
+                  mediaRecorder.ondataavailable = function (event) {
+                     if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                     }
+                  };
+
+                  mediaRecorder.onstop = function () {
+                     const audioBlob = new Blob(audioChunks, {
+                        type: "audio/wav; codecs=opus",
+                     });
+                     uploadFile(audioBlob);
+                     const audioUrl = URL.createObjectURL(audioBlob);
+                     // audioPlayback.src = audioUrl;
+                     audioChunks = [];
+                  };
+
+                  askRecord.onclick = function () {
+							if(isRecording) {
+								console.log("Recording stop...");
+								mediaRecorder.stop();
+								textAsk.textContent = "ASK PROFESOR";
+								isRecording = false;
+							} else {
+								console.log("Recording started...");
+								mediaRecorder.start()
+								textAsk.textContent = "STOP (Listening...)";
+								isRecording = true;
+							}
+                  };
+
+               })
+               .catch((error) => {
+                  console.error("Error accessing the microphone:", error);
+               });
+         });
+
+         async function uploadFile(blob) {
+            askRecord.disabled = true;
+				textAsk.textContent = "Uploading..."
+            const formData = new FormData();
+            formData.append("audio", blob);
+            formData.append(
+               "language",
+               document.getElementById("language").value
+            );
+            formData.append("data", JSON.stringify(responseData));
+
+            const response = await fetch("/upload-file", {
+               method: "POST",
+               body: formData,
+            });
+            if (!response.ok) {
+					askRecord.disabled = false;
+					textAsk.textContent = "ASK PROFESOR";
+               alert("Error uploading the file. Please try again.");
+               return;
+            }
+            const data = await response.json();
+            if (data.error) {
+					askRecord.disabled = false;
+					textAsk.textContent = "ASK PROFESOR";
+					alert(data.error);
+               return;
+            }
+            responseData.length = 0;
+				chat.innerHTML = "";
+            for (const r of data.data) {
+               responseData.push(r);
+               const regex = /\(\w{2}-\w{2}\)/g;
+					if(r.role == "user") {
+						addTextUser(r.content.replaceAll(regex, ""));
+					} else {
+						addTextProfessor(r.content.replaceAll(regex, ""));
+					}
+            }
+				askRecord.disabled = false;
+				textAsk.textContent = "ASK PROFESOR";
+         }
+  </script>
+</html>
