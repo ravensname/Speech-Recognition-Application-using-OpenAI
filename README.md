@@ -1,5 +1,10 @@
 # Application
+
+**Picture**:
 ![Screenshot 2024-04-23 112254](https://github.com/ravensname/Speech-Recognition-Application-using-OpenAI/assets/133107965/66e7d1f8-0580-4b59-8899-f22cbbc0367b)
+
+**Video**:
+![Untitled design](https://github.com/ravensname/Speech-Recognition-Application-using-OpenAI/assets/133107965/ed946fcd-00fd-4890-aa98-90b1d5d58d9e)
 
 ## Table of Contents
 
